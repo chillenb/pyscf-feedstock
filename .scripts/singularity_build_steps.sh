@@ -7,7 +7,6 @@
 
 # -*- mode: jinja-shell -*-
 
-/opt/conda/bin/tini
 /opt/conda/condabin/activate base
 
 set -xeuo pipefail
