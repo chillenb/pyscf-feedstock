@@ -7,6 +7,7 @@
 
 # -*- mode: jinja-shell -*-
 
+eval "$(/opt/conda/bin/conda shell.bash hook)"
 conda activate base
 
 set -xeuo pipefail
