@@ -103,11 +103,11 @@ export SINGULARITY_FEEDSTOCK_TOKEN"${FEEDSTOCK_TOKEN}"
 export SINGULARITY_STAGING_BINSTAR_TOKEN="${STAGING_BINSTAR_TOKEN}"
 
 singularity run ${SINGULARITY_RUN_ARGS} \
-           -B "${RECIPE_ROOT}":/home/conda/recipe_root \
-           -B "${FEEDSTOCK_ROOT}":/home/conda/feedstock_root \
+           -B "${RECIPE_ROOT}":/workdir/recipe_root \
+           -B "${FEEDSTOCK_ROOT}":/workdir/feedstock_root \
            "${DOCKER_IMAGE}" \
            bash \
-           "/home/conda/feedstock_root/${PROVIDER_DIR}/build_steps.sh"
+           "/workdir/feedstock_root/${PROVIDER_DIR}/build_steps.sh"
 
 # verify that the end of the script was reached
 test -f "$DONE_CANARY"
