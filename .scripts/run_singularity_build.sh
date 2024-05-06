@@ -102,7 +102,7 @@ export SINGULARITY_BINSTAR_TOKEN="${BINSTAR_TOKEN}"
 export SINGULARITY_FEEDSTOCK_TOKEN"${FEEDSTOCK_TOKEN}"
 export SINGULARITY_STAGING_BINSTAR_TOKEN="${STAGING_BINSTAR_TOKEN}"
 
-singularity run ${DOCKER_RUN_ARGS} \
+singularity run ${SINGULARITY_RUN_ARGS} \
            -B "${RECIPE_ROOT}":/home/conda/recipe_root \
            -B "${FEEDSTOCK_ROOT}":/home/conda/feedstock_root \
            "${DOCKER_IMAGE}" \
