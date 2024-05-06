@@ -81,26 +81,30 @@ fi
 
 export UPLOAD_PACKAGES="${UPLOAD_PACKAGES:-True}"
 export IS_PR_BUILD="${IS_PR_BUILD:-False}"
+
+
+export SINGULARITY_CONFIG="${CONFIG}"
+
+export SINGULARITY_HOST_USER_ID="${HOST_USER_ID}"
+export SINGULARITY_UPLOAD_PACKAGES="${UPLOAD_PACKAGES}"
+export SINGULARITY_IS_PR_BUILD="${IS_PR_BUILD}"
+export SINGULARITY_GIT_BRANCH="${GIT_BRANCH}"
+export SINGULARITY_UPLOAD_ON_BRANCH="${UPLOAD_ON_BRANCH}"
+export SINGULARITY_CI="${CI}"
+export SINGULARITY_FEEDSTOCK_NAME="${FEEDSTOCK_NAME}"
+export SINGULARITY_CPU_COUNT="${CPU_COUNT}"
+export SINGULARITY_BUILD_WITH_CONDA_DEBUG="${BUILD_WITH_CONDA_DEBUG}"
+export SINGULARITY_BUILD_OUTPUT_ID="${BUILD_OUTPUT_ID}"
+export SINGULARITY_flow_run_id="${flow_run_id}"
+export SINGULARITY_remote_url="${remote_url}"
+export SINGULARITY_sha="${sha}"
+export SINGULARITY_BINSTAR_TOKEN="${BINSTAR_TOKEN}"
+export SINGULARITY_FEEDSTOCK_TOKEN"${FEEDSTOCK_TOKEN}"
+export SINGULARITY_STAGING_BINSTAR_TOKEN="${STAGING_BINSTAR_TOKEN}"
+
 singularity run ${DOCKER_RUN_ARGS} \
-           -v "${RECIPE_ROOT}":/home/conda/recipe_root:rw,z,delegated \
-           -v "${FEEDSTOCK_ROOT}":/home/conda/feedstock_root:rw,z,delegated \
-           -e CONFIG \
-           -e HOST_USER_ID \
-           -e UPLOAD_PACKAGES \
-           -e IS_PR_BUILD \
-           -e GIT_BRANCH \
-           -e UPLOAD_ON_BRANCH \
-           -e CI \
-           -e FEEDSTOCK_NAME \
-           -e CPU_COUNT \
-           -e BUILD_WITH_CONDA_DEBUG \
-           -e BUILD_OUTPUT_ID \
-           -e flow_run_id \
-           -e remote_url \
-           -e sha \
-           -e BINSTAR_TOKEN \
-           -e FEEDSTOCK_TOKEN \
-           -e STAGING_BINSTAR_TOKEN \
+           -B "${RECIPE_ROOT}":/home/conda/recipe_root \
+           -B "${FEEDSTOCK_ROOT}":/home/conda/feedstock_root \
            "${DOCKER_IMAGE}" \
            bash \
            "/home/conda/feedstock_root/${PROVIDER_DIR}/build_steps.sh"
