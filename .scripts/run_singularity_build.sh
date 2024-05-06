@@ -107,7 +107,7 @@ singularity run ${SINGULARITY_RUN_ARGS} \
            -B "${FEEDSTOCK_ROOT}":/workdir/feedstock_root \
            "${DOCKER_IMAGE}" \
            bash \
-           "/workdir/feedstock_root/${PROVIDER_DIR}/build_steps.sh"
+           "/workdir/feedstock_root/${PROVIDER_DIR}/singularity_build_steps.sh"
 
 # verify that the end of the script was reached
 test -f "$DONE_CANARY"
