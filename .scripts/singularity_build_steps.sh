@@ -7,6 +7,9 @@
 
 # -*- mode: jinja-shell -*-
 
+/opt/conda/bin/tini
+/opt/conda/condabin/activate base
+
 set -xeuo pipefail
 export FEEDSTOCK_ROOT="${FEEDSTOCK_ROOT:-/workdir/feedstock_root}"
 source ${FEEDSTOCK_ROOT}/.scripts/logging_utils.sh
