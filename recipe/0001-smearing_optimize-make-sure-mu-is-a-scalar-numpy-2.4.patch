@@ -1,0 +1,25 @@
+From 2b456850034fcccb6789d92ff3230c555bee1a72 Mon Sep 17 00:00:00 2001
+From: Christopher Hillenbrand <chillenbrand15@gmail.com>
+Date: Sun, 25 Jan 2026 23:12:58 -0500
+Subject: [PATCH] smearing_optimize: make sure mu is a scalar (numpy 2.4)
+
+---
+ pyscf/scf/addons.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pyscf/scf/addons.py b/pyscf/scf/addons.py
+index ef1560dbc..115b8d5e7 100644
+--- a/pyscf/scf/addons.py
++++ b/pyscf/scf/addons.py
+@@ -89,7 +89,7 @@ def _smearing_optimize(f_occ, mo_es, nocc, sigma):
+     res = scipy.optimize.minimize(
+         nelec_cost_fn, mu0, method='Powell',
+         options={'xtol': 1e-5, 'ftol': 1e-5, 'maxiter': 10000})
+-    mu = res.x
++    mu = res.x[0]
+     mo_occs = f_occ(mu, mo_es, sigma)
+     return mu, mo_occs
+ 
+-- 
+2.52.0
+

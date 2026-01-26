@@ -12,6 +12,8 @@ package:
 source:
   url: https://github.com/pyscf/pyscf/archive/refs/tags/v${{ version }}.tar.gz
   sha256: d2a924314433b17ea033fd7d311d94f109d5b2ba8a0d70a37312aca4a44350e5
+  patches:
+    - 0001-smearing_optimize-make-sure-mu-is-a-scalar-numpy-2.4.patch
 
 build:
   number: ${{ ( (build_num | int) + 100 * (mlevel | int) + (1000 if use_fast_math else 0) ) }}
