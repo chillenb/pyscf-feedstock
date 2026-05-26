@@ -25,7 +25,7 @@ libblas:
 libcint:
 - '6.1'
 microarch_level:
-- 3
+- '3'
 pin_run_as_build:
   python:
     min_pin: x.x
