@@ -1,7 +1,7 @@
 context:
   version: "2.13.0"
   touch_is_freethreading: ${{ is_freethreading }}
-  build_num: 2
+  build_num: 10000
   mlevel: ${{ (microarch_level | int) if microarch_level else 0 }}
   use_fast_math: ${{ linux and x86_64 and match(c_stdlib_version, ">=2.28") }}
 
@@ -28,7 +28,7 @@ build:
         - cp $SRC_DIR/pyscf/lib/cmake_user_inc_examples/cmake.user.inc-gnu $SRC_DIR/pyscf/lib/cmake.arch.inc
         # need to link libm for -ffast-math
         - echo "link_libraries(m)" >> $SRC_DIR/pyscf/lib/cmake.arch.inc
-    - if: (microarch_level == 4)
+    - if: (mlevel == 4)
       then:
         # manually add the appropriate flags so we can cross compile for v4
         - export CFLAGS="${CFLAGS} -march=x86-64-v4"
@@ -54,8 +54,8 @@ requirements:
     - setuptools
     # following the trick in graph-tool-feedstock
     # to cross-compile for v4
-    - if: unix and x86_64 and ( microarch_level < 4)
-      then: x86_64-microarch-level ==${{ microarch_level }}
+    - if: unix and x86_64 and (mlevel < 4)
+      then: x86_64-microarch-level ==${{ mlevel }}
   host:
     - libblas
     - libcint
@@ -74,14 +74,14 @@ requirements:
     - python
     - scipy >=0.19,!=1.5.0,!=1.5
     - setuptools
-    - if: unix and x86_64 and (microarch_level == 4)
-      then: _x86_64-microarch-level >=${{ microarch_level }}
+    - if: unix and x86_64 and (mlevel == 4)
+      then: _x86_64-microarch-level >=${{ mlevel }}
   run_constraints:
     - pyberny >=0.6.2
     - geometric >=0.9.7.2
 
 tests:
-  - if: (microarch_level != 4)
+  - if: (mlevel != 4)
     then:
       - python:
           imports:
