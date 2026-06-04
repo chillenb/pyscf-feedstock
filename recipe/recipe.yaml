@@ -12,63 +12,91 @@ package:
 source:
   url: https://github.com/pyscf/pyscf/archive/refs/tags/v${{ version }}.tar.gz
   sha256: f55fe07c058f98b1ab7b1cbbf630b0a85ce7da6c5015a07f0a15ede3d14289fa
+  patches:
+    - 0001-win-dll-wrappers.patch
+    - 0002-win-build.patch
+    - 0003-win-temp.patch
 
 build:
   number: ${{ ( (build_num | int) + 100 * (mlevel | int) + (1000 if use_fast_math else 0) ) }}
   python:
     version_independent: true
   skip:
-    - win
     - not is_python_min
   script:
-    - if: use_fast_math
+    - if: unix
       then:
-        # this contains "-ffast-math"
-        # libmvec's vector math was introduced in glibc 2.22,
-        - cp $SRC_DIR/pyscf/lib/cmake_user_inc_examples/cmake.user.inc-gnu $SRC_DIR/pyscf/lib/cmake.arch.inc
-        # need to link libm for -ffast-math
-        - echo "link_libraries(m)" >> $SRC_DIR/pyscf/lib/cmake.arch.inc
-    - if: (mlevel == 4)
+        - if: use_fast_math
+          then:
+            # this contains "-ffast-math"
+            # libmvec's vector math was introduced in glibc 2.22,
+            - cp $SRC_DIR/pyscf/lib/cmake_user_inc_examples/cmake.user.inc-gnu $SRC_DIR/pyscf/lib/cmake.arch.inc
+            # need to link libm for -ffast-math
+            - echo "link_libraries(m)" >> $SRC_DIR/pyscf/lib/cmake.arch.inc
+        - if: (mlevel == 4)
+          then:
+            # manually add the appropriate flags so we can cross compile for v4
+            - export CFLAGS="${CFLAGS} -march=x86-64-v4"
+            - export CXXFLAGS="${CXXFLAGS} -march=x86-64-v4"
+            - export CPPFLAGS="${CPPFLAGS} -march=x86-64-v4"
+        - export CMAKE_CONFIGURE_ARGS="${CMAKE_ARGS} -DBLAS_LIBRARIES=lapack;blas -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=ON -DBUILD_LIBCINT=OFF -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -LAH"
+        - export CMAKE_BUILD_PARALLEL_LEVEL=${CPU_COUNT}
+        - ${{ PYTHON }} -m pip install . -vv
+    - if: win
       then:
-        # manually add the appropriate flags so we can cross compile for v4
-        - export CFLAGS="${CFLAGS} -march=x86-64-v4"
-        - export CXXFLAGS="${CXXFLAGS} -march=x86-64-v4"
-        - export CPPFLAGS="${CPPFLAGS} -march=x86-64-v4"
-    - export CMAKE_CONFIGURE_ARGS="${CMAKE_ARGS} -DBLAS_LIBRARIES=lapack;blas -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=ON -DBUILD_LIBCINT=OFF -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -LAH"
-    - export CMAKE_BUILD_PARALLEL_LEVEL=${CPU_COUNT}
-    - ${{ PYTHON }} -m pip install . -vv
+        - set CMAKE_GENERATOR=Ninja
+        - set CMAKE_GENERATOR_PLATFORM=
+        - set CMAKE_GENERATOR_TOOLSET=
+        - set CMAKE_BUILD_PARALLEL_LEVEL=4
+        - set LDFLAGS=%LDFLAGS% -L%LIBRARY_PREFIX%\bin
+        - python -c "import glob, shutil, os; src=glob.glob(os.path.join(os.environ['PREFIX'], 'Library', 'bin', 'mkl_rt*.dll')); dst=os.path.join(os.environ['PREFIX'], 'Library', 'lib', 'libmkl_rt.a'); shutil.copy(src[0], dst) if src else None"
+        - set CMAKE_CONFIGURE_ARGS=%CMAKE_ARGS% -DCMAKE_C_COMPILER=%CC% -DCMAKE_CXX_COMPILER=%CXX% -DBLAS_LIBRARIES=mkl_rt -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%LIBRARY_PREFIX% -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=ON -DBUILD_LIBCINT=OFF -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -LAH
+        - call %PYTHON% -m pip install . -vv
 
 requirements:
   build:
-    - ${{ compiler('c') }}
-    - ${{ stdlib("c") }}
-    - ${{ compiler('cxx') }}
+    - if: win
+      then: gcc_win-64
+      else: ${{ compiler('c') }}
+    - if: unix
+      then: ${{ stdlib("c") }}
+    - if: win
+      then: gxx_win-64
+      else: ${{ compiler('cxx') }}
     - cmake >=3.10
-    - make
+    - if: win
+      then: ninja
+      else: make
     - python
     - pip
-    - sed
+    - if: unix
+      then: sed
     - if: build_platform != target_platform
       then:
         - cross-python_${{ target_platform }}
     - setuptools
-    # following the trick in graph-tool-feedstock
-    # to cross-compile for v4
     - if: unix and x86_64 and (mlevel < 4)
       then: x86_64-microarch-level ==${{ mlevel }}
   host:
-    - libblas
+    - if: win
+      then: mkl
+      else: libblas
     - libcint
     - libxc-c >=6,<8
     - if: linux
       then: libgomp
-      else: llvm-openmp
-    - make
+    - if: osx
+      then: llvm-openmp
+    - if: win
+      then: ninja
+      else: make
     - pip
     - python
     - setuptools
     - xcfun ==2.1.1
   run:
+    - if: win
+      then: psutil
     - h5py >=2.7
     - numpy >=1.13,!=1.16,!=1.17
     - python
