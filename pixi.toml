@@ -95,6 +95,18 @@ description = "Build pyscf-feedstock with variant osx_arm64_is_python_mintruepyt
 [tasks."inspect-osx_arm64_is_python_mintruepython3.10.____cpython"]
 cmd = "inspect_artifacts --recipe-dir recipe -m .ci_support/osx_arm64_is_python_mintruepython3.10.____cpython.yaml"
 description = "List contents of pyscf-feedstock packages built for variant osx_arm64_is_python_mintruepython3.10.____cpython"
+[tasks."build-win_64_is_python_mintruemicroarch_level1python3.10.____cpython"]
+cmd = "rattler-build build --recipe recipe -m .ci_support/win_64_is_python_mintruemicroarch_level1python3.10.____cpython.yaml"
+description = "Build pyscf-feedstock with variant win_64_is_python_mintruemicroarch_level1python3.10.____cpython directly (without setup scripts)"
+[tasks."inspect-win_64_is_python_mintruemicroarch_level1python3.10.____cpython"]
+cmd = "inspect_artifacts --recipe-dir recipe -m .ci_support/win_64_is_python_mintruemicroarch_level1python3.10.____cpython.yaml"
+description = "List contents of pyscf-feedstock packages built for variant win_64_is_python_mintruemicroarch_level1python3.10.____cpython"
+[tasks."build-win_64_is_python_mintruemicroarch_level3python3.10.____cpython"]
+cmd = "rattler-build build --recipe recipe -m .ci_support/win_64_is_python_mintruemicroarch_level3python3.10.____cpython.yaml"
+description = "Build pyscf-feedstock with variant win_64_is_python_mintruemicroarch_level3python3.10.____cpython directly (without setup scripts)"
+[tasks."inspect-win_64_is_python_mintruemicroarch_level3python3.10.____cpython"]
+cmd = "inspect_artifacts --recipe-dir recipe -m .ci_support/win_64_is_python_mintruemicroarch_level3python3.10.____cpython.yaml"
+description = "List contents of pyscf-feedstock packages built for variant win_64_is_python_mintruemicroarch_level3python3.10.____cpython"
 
 [feature.smithy.dependencies]
 conda-smithy = "*"
