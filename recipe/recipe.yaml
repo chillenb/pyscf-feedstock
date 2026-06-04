@@ -44,7 +44,7 @@ build:
         - ${{ PYTHON }} -m pip install . -vv
     - if: win
       then:
-        - python resolve_symlinks.py
+        - python %RECIPE_DIR%/resolve_symlinks.py
         - set CMAKE_GENERATOR=Ninja
         - set CMAKE_GENERATOR_PLATFORM=
         - set CMAKE_GENERATOR_TOOLSET=
