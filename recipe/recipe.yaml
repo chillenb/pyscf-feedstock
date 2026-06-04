@@ -50,18 +50,19 @@ build:
         - set CMAKE_BUILD_PARALLEL_LEVEL=4
         - set LDFLAGS=%LDFLAGS% -L%LIBRARY_PREFIX%\bin
         - python -c "import glob, shutil, os; src=glob.glob(os.path.join(os.environ['PREFIX'], 'Library', 'bin', 'mkl_rt*.dll')); dst=os.path.join(os.environ['PREFIX'], 'Library', 'lib', 'libmkl_rt.a'); shutil.copy(src[0], dst) if src else None"
-        - set CMAKE_CONFIGURE_ARGS=%CMAKE_ARGS% -DCMAKE_C_COMPILER=%CC% -DCMAKE_CXX_COMPILER=%CXX% -DBLAS_LIBRARIES=mkl_rt -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%LIBRARY_PREFIX% -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=ON -DBUILD_LIBCINT=OFF -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -LAH
+        - set CMAKE_CONFIGURE_ARGS=%CMAKE_ARGS% -DBLAS_LIBRARIES=mkl_rt -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%LIBRARY_PREFIX% -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=ON -DBUILD_LIBCINT=OFF -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -LAH
         - call %PYTHON% -m pip install . -vv
 
 requirements:
   build:
     - if: win
-      then: gcc_win-64
+      then: ${{ compiler('m2w64_c') }}
       else: ${{ compiler('c') }}
-    - if: unix
-      then: ${{ stdlib("c") }}
     - if: win
-      then: gxx_win-64
+      then: ${{ stdlib('m2w64_c') }}
+      else: ${{ stdlib("c") }}
+    - if: win
+      then: ${{ compiler('m2w64_cxx') }}
       else: ${{ compiler('cxx') }}
     - cmake >=3.10
     - if: win
