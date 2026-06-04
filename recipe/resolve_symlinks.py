@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-for root, _, files in os.walk('.'):
+for root, _, files in os.walk('./pyscf'):
     for f in files:
         p = Path(root) / f
         if p.is_symlink():
