@@ -1,0 +1,76 @@
+diff --git a/pyscf/lib/vhf/test/test_nr_direct.py b/pyscf/lib/vhf/test/test_nr_direct.py
+--- a/pyscf/lib/vhf/test/test_nr_direct.py
++++ b/pyscf/lib/vhf/test/test_nr_direct.py
+@@ -16,6 +16,7 @@
+ import os
+ import ctypes
++import sys
+ import _ctypes
+ import unittest
+ import numpy
+@@ -23,6 +24,11 @@
+ from pyscf import ao2mo
+ 
+ libcvhf2 = lib.load_library('libcvhf')
++if sys.platform == 'win32':
++    libcint = lib.load_library('libcint')
++    libcvhf2 = lib.make_dll_wrapper(libcvhf2, libcint)
++
+ 
+ mol = gto.Mole()
+ mol.verbose = 0
+@@ -68,7 +74,7 @@
+     dmsptr = (ctypes.c_void_p*(njk*n_dm))()
+     vjkptr = (ctypes.c_void_p*(njk*n_dm))()
+     for i, symb in enumerate(namejk):
+-        f1 = ctypes.c_void_p(_ctypes.dlsym(libcvhf2._handle, symb))
++        f1 = ctypes.cast(getattr(libcvhf2, symb), ctypes.c_void_p)
+         for j in range(n_dm):
+             dmsptr[i*n_dm+j] = dm1[j].ctypes.data_as(ctypes.c_void_p)
+             vjkptr[i*n_dm+j] = vjk[i,j*ncomp].ctypes.data_as(ctypes.c_void_p)
+diff --git a/pyscf/lib/gto/test/test_gridao.py b/pyscf/lib/gto/test/test_gridao.py
+--- a/pyscf/lib/gto/test/test_gridao.py
++++ b/pyscf/lib/gto/test/test_gridao.py
+@@ -14,6 +14,7 @@
+ # limitations under the License.
+ 
+ import ctypes
++import sys
+ import unittest
+ import numpy
+ from pyscf import lib, gto, df
+@@ -21,6 +22,12 @@
+ 
+ libcgto = lib.load_library('libdft')
+ 
++if sys.platform == 'win32':
++    libcvhf = lib.load_library('libcvhf')
++    _libcgto = lib.load_library('libcgto')
++    libcint = lib.load_library('libcint')
++    libcgto = lib.make_dll_wrapper(libcgto, libcvhf, _libcgto, libcint)
++
+ mol = gto.M(atom='''
+             O 0.5 0.5 0.
+             H  1.  1.2 0.
+diff --git a/pyscf/lib/ao2mo/test/test_ao2mo.py b/pyscf/lib/ao2mo/test/test_ao2mo.py
+--- a/pyscf/lib/ao2mo/test/test_ao2mo.py
++++ b/pyscf/lib/ao2mo/test/test_ao2mo.py
+@@ -15,6 +15,7 @@
+ 
+ import os
+ import ctypes
++import sys
+ import unittest
+ from functools import reduce
+ import numpy
+@@ -28,6 +29,11 @@
+ 
+ libao2mo1 = lib.load_library('libao2mo')
+ 
++if sys.platform == 'win32':
++    libcint = lib.load_library('libcint')
++    libao2mo1 = lib.make_dll_wrapper(libao2mo1, libcint)
++
+ mol = gto.Mole()
+ mol.verbose = 0
+ mol.output = None#'out_h2o'
