@@ -44,7 +44,7 @@ build:
         - ${{ PYTHON }} -m pip install . -vv
     - if: win
       then:
-        - python -c "import os, pathlib; [(lambda p: (c := pathlib.Path(p).read_bytes(), os.unlink(p), pathlib.Path(p).write_bytes(c))) for r,_,fs in os.walk('.') for f in fs if os.path.islink(p := os.path.join(r, f))]"
+        - python resolve_symlinks.py
         - set CMAKE_GENERATOR=Ninja
         - set CMAKE_GENERATOR_PLATFORM=
         - set CMAKE_GENERATOR_TOOLSET=
