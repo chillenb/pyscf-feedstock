@@ -1,25 +1,43 @@
-diff --git a/pyscf/lib/vhf/test/test_nr_direct.py b/pyscf/lib/vhf/test/test_nr_direct.py
---- a/pyscf/lib/vhf/test/test_nr_direct.py
-+++ b/pyscf/lib/vhf/test/test_nr_direct.py
-@@ -16,6 +16,7 @@
- import os
- import ctypes
-+import sys
- import _ctypes
- import unittest
- import numpy
-@@ -23,6 +24,11 @@
- from pyscf import ao2mo
+diff --git a/pyscf/lib/ao2mo/test/test_ao2mo.py b/pyscf/lib/ao2mo/test/test_ao2mo.py
+index 4bfc6b2a1..071d4aeea 100644
+--- a/pyscf/lib/ao2mo/test/test_ao2mo.py
++++ b/pyscf/lib/ao2mo/test/test_ao2mo.py
+@@ -26,7 +26,7 @@ from pyscf import ao2mo
+ from pyscf.ao2mo import _ao2mo
+ from pyscf.scf import _vhf
  
- libcvhf2 = lib.load_library('libcvhf')
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libcvhf2 = lib.make_dll_wrapper(libcvhf2, libcint)
-+
+-libao2mo1 = lib.load_library('libao2mo')
++from pyscf.ao2mo._ao2mo import libao2mo as libao2mo1
  
  mol = gto.Mole()
  mol.verbose = 0
-@@ -68,7 +74,7 @@
+diff --git a/pyscf/lib/gto/test/test_gridao.py b/pyscf/lib/gto/test/test_gridao.py
+index 5e6e63fbb..6a49862d0 100644
+--- a/pyscf/lib/gto/test/test_gridao.py
++++ b/pyscf/lib/gto/test/test_gridao.py
+@@ -19,7 +19,7 @@ import numpy
+ from pyscf import lib, gto, df
+ from pyscf.gto.eval_gto import BLKSIZE
+ 
+-libcgto = lib.load_library('libdft')
++from pyscf.dft.numint import libdft as libcgto
+ 
+ mol = gto.M(atom='''
+             O 0.5 0.5 0.
+diff --git a/pyscf/lib/vhf/test/test_nr_direct.py b/pyscf/lib/vhf/test/test_nr_direct.py
+index 0e5894a25..e9f714d28 100644
+--- a/pyscf/lib/vhf/test/test_nr_direct.py
++++ b/pyscf/lib/vhf/test/test_nr_direct.py
+@@ -23,7 +23,7 @@ from pyscf import scf
+ from pyscf import gto
+ from pyscf import ao2mo
+ 
+-libcvhf2 = lib.load_library('libcvhf')
++from pyscf.scf._vhf import libcvhf as libcvhf2
+ 
+ mol = gto.Mole()
+ mol.verbose = 0
+@@ -68,7 +68,7 @@ def runjk(dm1, ncomp, intorname, filldot, *namejk):
      dmsptr = (ctypes.c_void_p*(njk*n_dm))()
      vjkptr = (ctypes.c_void_p*(njk*n_dm))()
      for i, symb in enumerate(namejk):
@@ -28,49 +46,3 @@ diff --git a/pyscf/lib/vhf/test/test_nr_direct.py b/pyscf/lib/vhf/test/test_nr_d
          for j in range(n_dm):
              dmsptr[i*n_dm+j] = dm1[j].ctypes.data_as(ctypes.c_void_p)
              vjkptr[i*n_dm+j] = vjk[i,j*ncomp].ctypes.data_as(ctypes.c_void_p)
-diff --git a/pyscf/lib/gto/test/test_gridao.py b/pyscf/lib/gto/test/test_gridao.py
---- a/pyscf/lib/gto/test/test_gridao.py
-+++ b/pyscf/lib/gto/test/test_gridao.py
-@@ -14,6 +14,7 @@
- # limitations under the License.
- 
- import ctypes
-+import sys
- import unittest
- import numpy
- from pyscf import lib, gto, df
-@@ -21,6 +22,12 @@
- 
- libcgto = lib.load_library('libdft')
- 
-+if sys.platform == 'win32':
-+    libcvhf = lib.load_library('libcvhf')
-+    _libcgto = lib.load_library('libcgto')
-+    libcint = lib.load_library('libcint')
-+    libcgto = lib.make_dll_wrapper(libcgto, libcvhf, _libcgto, libcint)
-+
- mol = gto.M(atom='''
-             O 0.5 0.5 0.
-             H  1.  1.2 0.
-diff --git a/pyscf/lib/ao2mo/test/test_ao2mo.py b/pyscf/lib/ao2mo/test/test_ao2mo.py
---- a/pyscf/lib/ao2mo/test/test_ao2mo.py
-+++ b/pyscf/lib/ao2mo/test/test_ao2mo.py
-@@ -15,6 +15,7 @@
- 
- import os
- import ctypes
-+import sys
- import unittest
- from functools import reduce
- import numpy
-@@ -28,6 +29,11 @@
- 
- libao2mo1 = lib.load_library('libao2mo')
- 
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libao2mo1 = lib.make_dll_wrapper(libao2mo1, libcint)
-+
- mol = gto.Mole()
- mol.verbose = 0
- mol.output = None#'out_h2o'
