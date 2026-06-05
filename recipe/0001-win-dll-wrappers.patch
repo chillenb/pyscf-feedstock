@@ -1,8 +1,8 @@
 diff --git a/pyscf/ao2mo/_ao2mo.py b/pyscf/ao2mo/_ao2mo.py
-index a2b04b458..07f05641f 100644
+index a2b04b458..184f5f3db 100644
 --- a/pyscf/ao2mo/_ao2mo.py
 +++ b/pyscf/ao2mo/_ao2mo.py
-@@ -14,15 +14,29 @@
+@@ -14,15 +14,21 @@
  # limitations under the License.
  
  import ctypes
@@ -17,16 +17,8 @@ index a2b04b458..07f05641f 100644
 +
 +if sys.platform == 'win32':
 +    libcint = lib.load_library('libcint')
-+    class _LibAo2mo:
-+        def __init__(self, ao2mo, cint):
-+            object.__setattr__(self, '_ao2mo', ao2mo)
-+            object.__setattr__(self, '_cint', cint)
-+        def __getattr__(self, name):
-+            try:
-+                return getattr(self._ao2mo, name)
-+            except AttributeError:
-+                return getattr(self._cint, name)
-+    libao2mo = _LibAo2mo(libao2mo, libcint)
++    libcvhf = lib.load_library('libcvhf')
++    libao2mo = lib.make_dll_wrapper(libao2mo, libcint, libcvhf)
 +
  def _fpointer(name):
 -    return ctypes.c_void_p(_ctypes.dlsym(libao2mo._handle, name))
@@ -59,7 +51,7 @@ index 39556e07a..5f7097ca6 100644
  IOBLK_SIZE = getattr(__config__, 'ao2mo_outcore_ioblk_size', 256)  # 256 MB
  IOBUF_WORDS = getattr(__config__, 'ao2mo_outcore_iobuf_words', 1e8)  # 1.6 GB
 diff --git a/pyscf/df/df_jk.py b/pyscf/df/df_jk.py
-index 30c6fb6e4..5cf3b7a9a 100644
+index 30c6fb6e4..67d53f1e8 100644
 --- a/pyscf/df/df_jk.py
 +++ b/pyscf/df/df_jk.py
 @@ -17,6 +17,7 @@
@@ -70,7 +62,7 @@ index 30c6fb6e4..5cf3b7a9a 100644
  import numpy
  import scipy.linalg
  from pyscf import lib
-@@ -28,6 +29,27 @@ DEBUG = False
+@@ -28,6 +29,13 @@ DEBUG = False
  
  libri = lib.load_library('libri')
  
@@ -79,21 +71,7 @@ index 30c6fb6e4..5cf3b7a9a 100644
 +    libcvhf = lib.load_library('libcvhf')
 +    libcgto = lib.load_library('libcgto')
 +    libcint = lib.load_library('libcint')
-+    class _LibRi:
-+        def __init__(self, ri, ao2mo, cvhf, cgto, cint):
-+            object.__setattr__(self, '_ri', ri)
-+            object.__setattr__(self, '_ao2mo', ao2mo)
-+            object.__setattr__(self, '_cvhf', cvhf)
-+            object.__setattr__(self, '_cgto', cgto)
-+            object.__setattr__(self, '_cint', cint)
-+        def __getattr__(self, name):
-+            for dll in (self._ri, self._ao2mo, self._cvhf, self._cgto, self._cint):
-+                try:
-+                    return getattr(dll, name)
-+                except AttributeError:
-+                    pass
-+            raise AttributeError(f"function '{name}' not found")
-+    libri = _LibRi(libri, libao2mo, libcvhf, libcgto, libcint)
++    libri = lib.make_dll_wrapper(libri, libao2mo, libcvhf, libcgto, libcint)
 +
  def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
      '''For the given SCF object, update the J, K matrix constructor with
