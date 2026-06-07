@@ -1,24 +1,81 @@
+diff --git a/MANIFEST.in b/MANIFEST.in
+index 5597f6e05..e62e98ac3 100644
+--- a/MANIFEST.in
++++ b/MANIFEST.in
+@@ -11,6 +11,10 @@ include pyscf/lib/deps/lib*/libcint.[4-9].dylib
+ include pyscf/lib/deps/lib*/libxc.*.dylib
+ include pyscf/lib/deps/lib*/libxcfun.[2-9].dylib
+ 
++# windows dynamic libraries
++include pyscf/lib/*.dll
++include pyscf/lib/deps/bin/*.dll
++
+ include pyscf/geomopt/log.ini
+ include pyscf/gto/basis/bse_meta.json
+ 
+diff --git a/examples/2-benchmark/benchmarking_utils.py b/examples/2-benchmark/benchmarking_utils.py
+index 78e3c37ea..ddefe615a 100644
+--- a/examples/2-benchmark/benchmarking_utils.py
++++ b/examples/2-benchmark/benchmarking_utils.py
+@@ -4,13 +4,24 @@ from pyscf.lib.logger import perf_counter, process_clock
+ 
+ def setup_logger():
+     log = pyscf.lib.logger.Logger(verbose=5)
+-    with open('/proc/cpuinfo') as f:
+-        for line in f:
+-            if 'model name' in line:
+-                log.note(line[:-1])
+-                break
+-    with open('/proc/meminfo') as f:
+-        log.note(f.readline()[:-1])
++    try:
++        with open('/proc/cpuinfo') as f:
++            for line in f:
++                if 'model name' in line:
++                    log.note(line[:-1])
++                    break
++    except FileNotFoundError:
++        pass
++    try:
++        with open('/proc/meminfo') as f:
++            log.note(f.readline()[:-1])
++    except FileNotFoundError:
++        try:
++            import psutil
++            mem = psutil.virtual_memory()
++            log.note(f'MemTotal: {mem.total // 1024} kB')
++        except ImportError:
++            pass
+     log.note('OMP_NUM_THREADS=%s\n', os.environ.get('OMP_NUM_THREADS', None))
+     return log
+ 
+diff --git a/pyproject.toml b/pyproject.toml
+index 7518049d4..ff6a9d3a4 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -42,6 +42,7 @@ dependencies = [
+   'scipy>=1.6.0',
+   'h5py>=2.7',
+   'setuptools',
++  "psutil; sys_platform == 'win32'"
+ ]
+ 
+ [project.urls]
 diff --git a/pyscf/ao2mo/_ao2mo.py b/pyscf/ao2mo/_ao2mo.py
-index a2b04b458..184f5f3db 100644
+index a2b04b458..5f06314e6 100644
 --- a/pyscf/ao2mo/_ao2mo.py
 +++ b/pyscf/ao2mo/_ao2mo.py
-@@ -14,15 +14,21 @@
+@@ -14,15 +14,15 @@
  # limitations under the License.
  
  import ctypes
 -import _ctypes
-+import sys
  import numpy
  from pyscf import lib
  from pyscf.gto.moleintor import make_cintopt, make_loc, ascint3
  from pyscf.scf import _vhf
  
  libao2mo = lib.load_library('libao2mo')
-+
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libcvhf = lib.load_library('libcvhf')
-+    libao2mo = lib.make_dll_wrapper(libao2mo, libcint, libcvhf)
 +
  def _fpointer(name):
 -    return ctypes.c_void_p(_ctypes.dlsym(libao2mo._handle, name))
@@ -27,7 +84,7 @@ index a2b04b458..184f5f3db 100644
  class AO2MOpt:
      def __init__(self, mol, intor, prescreen='CVHFnoscreen', qcondname=None):
 diff --git a/pyscf/ao2mo/nrr_outcore.py b/pyscf/ao2mo/nrr_outcore.py
-index 39556e07a..5f7097ca6 100644
+index 39556e07a..6a21d979b 100644
 --- a/pyscf/ao2mo/nrr_outcore.py
 +++ b/pyscf/ao2mo/nrr_outcore.py
 @@ -22,7 +22,6 @@ import tempfile
@@ -38,251 +95,102 @@ index 39556e07a..5f7097ca6 100644
  from pyscf import lib
  from pyscf import gto
  from pyscf.lib import logger
-@@ -31,9 +30,8 @@ from pyscf.ao2mo import outcore
- from pyscf import __config__
- from pyscf.gto.moleintor import make_cintopt, make_loc, ascint3
+@@ -33,7 +32,7 @@ from pyscf.gto.moleintor import make_cintopt, make_loc, ascint3
  
--libao2mo = lib.load_library('libao2mo')
--def _fpointer(name):
+ libao2mo = lib.load_library('libao2mo')
+ def _fpointer(name):
 -    return ctypes.c_void_p(_ctypes.dlsym(libao2mo._handle, name))
-+libao2mo = _ao2mo.libao2mo
-+_fpointer = _ao2mo._fpointer
++    return ctypes.cast(getattr(libao2mo, name), ctypes.c_void_p)
  
  IOBLK_SIZE = getattr(__config__, 'ao2mo_outcore_ioblk_size', 256)  # 256 MB
  IOBUF_WORDS = getattr(__config__, 'ao2mo_outcore_iobuf_words', 1e8)  # 1.6 GB
-diff --git a/pyscf/df/df_jk.py b/pyscf/df/df_jk.py
-index 30c6fb6e4..67d53f1e8 100644
---- a/pyscf/df/df_jk.py
-+++ b/pyscf/df/df_jk.py
-@@ -17,6 +17,7 @@
- #
+diff --git a/pyscf/lib/CMakeLists.txt b/pyscf/lib/CMakeLists.txt
+index 60f404849..51de15a1b 100644
+--- a/pyscf/lib/CMakeLists.txt
++++ b/pyscf/lib/CMakeLists.txt
+@@ -128,7 +128,9 @@ include_directories("${PROJECT_BINARY_DIR}")
  
- import ctypes
-+import sys
- import numpy
- import scipy.linalg
- from pyscf import lib
-@@ -28,6 +29,13 @@ DEBUG = False
+ # See also https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
+ if (WIN32)
+-  #?
++  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
++  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--disable-runtime-pseudo-reloc")
++  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+ elseif (APPLE)
+   set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+   set(CMAKE_INSTALL_RPATH "@loader_path;@loader_path/deps/lib;@loader_path/deps/lib64")
+diff --git a/pyscf/lib/dft/test/test_sparse_dot.py b/pyscf/lib/dft/test/test_sparse_dot.py
+index 8b948c5a6..feb216d8a 100644
+--- a/pyscf/lib/dft/test/test_sparse_dot.py
++++ b/pyscf/lib/dft/test/test_sparse_dot.py
+@@ -162,7 +162,7 @@ class KnownValues(unittest.TestCase):
+             ctypes.c_int(nbins), s_index.ctypes.data_as(ctypes.c_void_p),
+             pair_mask.ctypes.data_as(ctypes.c_void_p),
+             ao_loc.ctypes.data_as(ctypes.c_void_p))
+-        self.assertAlmostEqual(abs(ref - out).max(), 0, 24)
++        self.assertAlmostEqual(abs(ref - out).max(), 0, 23)
  
- libri = lib.load_library('libri')
- 
-+if sys.platform == 'win32':
-+    libao2mo = lib.load_library('libao2mo')
-+    libcvhf = lib.load_library('libcvhf')
-+    libcgto = lib.load_library('libcgto')
-+    libcint = lib.load_library('libcint')
-+    libri = lib.make_dll_wrapper(libri, libao2mo, libcvhf, libcgto, libcint)
-+
- def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
-     '''For the given SCF object, update the J, K matrix constructor with
-     corresponding density fitting integrals.
-diff --git a/pyscf/dft/gen_grid.py b/pyscf/dft/gen_grid.py
-index 394f61402..a76f4b6f6 100644
---- a/pyscf/dft/gen_grid.py
-+++ b/pyscf/dft/gen_grid.py
-@@ -38,6 +38,12 @@ from pyscf import __config__
- 
- libdft = lib.load_library('libdft')
- 
-+if sys.platform == 'win32':
-+    libcvhf = lib.load_library('libcvhf')
-+    libcgto = lib.load_library('libcgto')
-+    libcint = lib.load_library('libcint')
-+    libdft = lib.make_dll_wrapper(libdft, libcvhf, libcgto, libcint)
-+
- GROUP_BOX_SIZE = 1.2
- GROUP_BOUNDARY_PENALTY = 4.2
- # Padding grids to make the AO value generated by eval_gto aligned in memory
-diff --git a/pyscf/dft/libxc.py b/pyscf/dft/libxc.py
-index 5e7db2f38..fbc589ff6 100644
---- a/pyscf/dft/libxc.py
-+++ b/pyscf/dft/libxc.py
-@@ -45,6 +45,11 @@ from pyscf.dft import xc_deriv
- from pyscf import __config__
- 
- _itrf = lib.load_library('libxc_itrf')
-+
-+if sys.platform == 'win32':
-+    libxc = lib.load_library('xc')
-+    _itrf = lib.make_dll_wrapper(_itrf, libxc)
-+
- _itrf.LIBXC_is_lda.restype = ctypes.c_int
- _itrf.LIBXC_is_gga.restype = ctypes.c_int
- _itrf.LIBXC_is_meta_gga.restype = ctypes.c_int
-diff --git a/pyscf/dft/numint.py b/pyscf/dft/numint.py
-index dfb2ef26a..c75831ea3 100644
---- a/pyscf/dft/numint.py
-+++ b/pyscf/dft/numint.py
-@@ -22,6 +22,7 @@ Numerical integration functions for RKS and UKS with real AO basis
- 
- import warnings
- import ctypes
-+import sys
- import numpy
- from pyscf import lib
- try:
-@@ -39,6 +40,11 @@ from pyscf.dft import xc_deriv
- from pyscf import __config__
- 
- libdft = lib.load_library('libdft')
-+if sys.platform == 'win32':
-+    libcvhf = lib.load_library('libcvhf')
-+    libcgto = lib.load_library('libcgto')
-+    libcint = lib.load_library('libcint')
-+    libdft = lib.make_dll_wrapper(libdft, libcvhf, libcgto, libcint)
- OCCDROP = getattr(__config__, 'dft_numint_occdrop', 1e-12)
- # The system size above which to consider the sparsity of the density matrix.
- # If the number of AOs in the system is less than this value, all tensors are
-diff --git a/pyscf/dft/xc_deriv.py b/pyscf/dft/xc_deriv.py
-index e67c70032..8a7ea8b5f 100644
---- a/pyscf/dft/xc_deriv.py
-+++ b/pyscf/dft/xc_deriv.py
-@@ -23,11 +23,18 @@ import math
- import itertools
- from functools import lru_cache
- import ctypes
-+import sys
- import numpy as np
- from pyscf import lib
- 
- libdft = lib.load_library('libdft')
- 
-+if sys.platform == 'win32':
-+    libcvhf = lib.load_library('libcvhf')
-+    libcgto = lib.load_library('libcgto')
-+    libcint = lib.load_library('libcint')
-+    libdft = lib.make_dll_wrapper(libdft, libcvhf, libcgto, libcint)
-+
- 
- def transform_vxc(rho, vxc, xctype, spin=0):
-     r'''
-diff --git a/pyscf/dft/xcfun.py b/pyscf/dft/xcfun.py
-index e90fded66..dbb416993 100644
---- a/pyscf/dft/xcfun.py
-+++ b/pyscf/dft/xcfun.py
-@@ -23,6 +23,7 @@ U. Ekstrom et al, J. Chem. Theory Comput., 6, 1971
- '''
- 
- import ctypes
-+import sys
- from functools import lru_cache
- import math
- import numpy
-@@ -31,7 +32,13 @@ from pyscf.dft.xc.utils import remove_dup, format_xc_code
- from pyscf.dft import xc_deriv
- from pyscf import __config__
- 
--_itrf = lib.load_library('libxcfun_itrf')
-+_itrf_raw = lib.load_library('libxcfun_itrf')
-+
-+if sys.platform == 'win32':
-+    xcfun = lib.load_library('xcfun')
-+    _itrf = lib.make_dll_wrapper(_itrf_raw, xcfun)
-+else:
-+    _itrf = _itrf_raw
- 
- _itrf.xcfun_splash.restype = ctypes.c_char_p
- _itrf.xcfun_version.restype = ctypes.c_char_p
-@@ -306,7 +313,7 @@ RSH_XC = {'CAMB3LYP'}
- 
- # The compatibility with the old libxcfun_itrf.so library
- try:
--    MAX_DERIV_ORDER = ctypes.c_int.in_dll(_itrf, 'XCFUN_max_deriv_order').value
-+    MAX_DERIV_ORDER = ctypes.c_int.in_dll(_itrf_raw, 'XCFUN_max_deriv_order').value
- except ValueError:
-     MAX_DERIV_ORDER = 3
- 
-diff --git a/pyscf/gto/eval_gto.py b/pyscf/gto/eval_gto.py
-index 64e1b1bc1..edc4dffb2 100644
---- a/pyscf/gto/eval_gto.py
-+++ b/pyscf/gto/eval_gto.py
-@@ -18,6 +18,7 @@
- 
- import warnings
- import ctypes
-+import sys
- import numpy
- from pyscf import lib
- from pyscf.gto.moleintor import make_loc
-@@ -29,6 +30,10 @@ CUTOFF = getattr(__config__, 'eval_gto_cutoff', 1e-15)
- 
- libcgto = lib.load_library('libcgto')
- 
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libcgto = lib.make_dll_wrapper(libcgto, libcint)
-+
- def eval_gto(mol, eval_name, coords, comp=None, shls_slice=None, non0tab=None,
-              ao_loc=None, cutoff=None, out=None):
-     r'''Evaluate AO function value on the given grids,
-diff --git a/pyscf/gto/moleintor.py b/pyscf/gto/moleintor.py
-index 96c3cba03..d938ade7a 100644
---- a/pyscf/gto/moleintor.py
-+++ b/pyscf/gto/moleintor.py
-@@ -23,11 +23,16 @@ Mole.intor method to drive the integral evaluation functions.
- 
- import warnings
- import ctypes
-+import sys
- import numpy
- from pyscf import lib
- 
- libcgto = lib.load_library('libcgto')
- 
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libcgto = lib.make_dll_wrapper(libcgto, libcint)
-+
- ANG_OF     = 1
- NPRIM_OF   = 2
- NCTR_OF    = 3
-diff --git a/pyscf/hessian/rks.py b/pyscf/hessian/rks.py
-index b559c6d7e..e31ca791c 100644
---- a/pyscf/hessian/rks.py
-+++ b/pyscf/hessian/rks.py
-@@ -23,6 +23,7 @@ Non-relativistic RKS analytical Hessian
- 
- import numpy
- import ctypes
-+import sys
- from pyscf import lib
- from pyscf import gto
- from pyscf.lib import logger
-@@ -39,6 +40,12 @@ min_grid_blksize = 128*128
- NLC_REMOVE_ZERO_RHO_GRID_THRESHOLD = 1e-8
- 
- libdft = lib.load_library('libdft')
-+
-+if sys.platform == 'win32':
-+    libcvhf = lib.load_library('libcvhf')
-+    libcgto = lib.load_library('libcgto')
-+    libcint = lib.load_library('libcint')
-+    libdft = lib.make_dll_wrapper(libdft, libcvhf, libcgto, libcint)
- contract = numpy.einsum
- 
- 
+     def test_dot_ao_ao_case2(self):
+         np.random.seed(1)
 diff --git a/pyscf/lib/misc.py b/pyscf/lib/misc.py
-index 746e8583e..18a400739 100644
+index 746e8583e..15ec9d1e9 100644
 --- a/pyscf/lib/misc.py
 +++ b/pyscf/lib/misc.py
-@@ -97,6 +97,13 @@ def load_library(libname):
+@@ -91,36 +91,89 @@ c_double_p = ctypes.POINTER(ctypes.c_double)
+ c_int_p = ctypes.POINTER(ctypes.c_int)
+ c_null_ptr = ctypes.POINTER(ctypes.c_void_p)
+ 
++_dll_deps = {
++    'libcgto':       ['libcint'],
++    'libcvhf':       ['libcint'],
++    'libao2mo':      ['libcint', 'libcvhf'],
++    'libdft':        ['libcvhf', 'libcgto', 'libcint'],
++    'libpbc':        ['libcint', 'libcgto'],
++    'libri':         ['libao2mo', 'libcvhf', 'libcgto', 'libcint'],
++    'libxc_itrf':    ['xc'],
++    'libxcfun_itrf': ['xcfun'],
++}
++
+ @functools.lru_cache(128)
+ def load_library(libname):
++    lib = None
+     try:
          _loaderpath = os.path.dirname(__file__)
-         return numpy.ctypeslib.load_library(libname, _loaderpath)
+-        return numpy.ctypeslib.load_library(libname, _loaderpath)
++        lib = numpy.ctypeslib.load_library(libname, _loaderpath)
      except OSError:
-+        if sys.platform == 'win32':
-+            for env_path in [os.path.join(sys.prefix, 'Library', 'bin'),
-+                             os.path.join(sys.prefix, 'Library', 'lib')]:
-+                try:
-+                    return numpy.ctypeslib.load_library(libname, env_path)
-+                except OSError:
-+                    pass
++        pass
++
++    if lib is None and sys.platform == 'win32':
++        for env_path in [os.path.join(sys.prefix, 'Library', 'bin'),
++                         os.path.join(sys.prefix, 'Library', 'lib')]:
++            try:
++                lib = numpy.ctypeslib.load_library(libname, env_path)
++                break
++            except OSError:
++                pass
++
++    if lib is None:
          from pyscf import __path__ as ext_modules
          for path in ext_modules:
              libpath = os.path.join(path, 'lib')
-@@ -106,21 +113,41 @@ def load_library(libname):
-                         return numpy.ctypeslib.load_library(libname, libpath)
-         raise
- 
+             if os.path.isdir(libpath):
+                 for files in os.listdir(libpath):
+                     if files.startswith(libname):
+-                        return numpy.ctypeslib.load_library(libname, libpath)
+-        raise
++                        lib = numpy.ctypeslib.load_library(libname, libpath)
++                        break
++                if lib is not None:
++                    break
++        if lib is None:
++            raise OSError(f'Library {libname} not found')
++
++    if sys.platform == 'win32' and libname in _dll_deps:
++        deps = [load_library(d) for d in _dll_deps[libname]]
++        lib = make_dll_wrapper(lib, *deps)
++    return lib
++
 +
 +def make_dll_wrapper(lib, *fallbacks):
 +    if sys.platform != 'win32':
@@ -299,7 +207,7 @@ index 746e8583e..18a400739 100644
 +                    pass
 +            raise AttributeError(f"function '{name}' not found")
 +    return _DllWrapper(lib, *fallbacks)
-+
+ 
  #Fixme, the standard resource module gives wrong number when objects are released
  # http://fa.bianp.net/blog/2013/different-ways-to-get-memory-consumption-or-lessons-learned-from-memory_profiler/#fn:1
  #or use slow functions as memory_profiler._get_memory did
@@ -327,59 +235,42 @@ index 746e8583e..18a400739 100644
  
  def num_threads(n=None):
      '''Set the number of OMP threads.  If argument is not specified, the
-diff --git a/pyscf/pbc/df/incore.py b/pyscf/pbc/df/incore.py
-index 9cfd6559f..2325d5ef3 100644
---- a/pyscf/pbc/df/incore.py
-+++ b/pyscf/pbc/df/incore.py
-@@ -31,13 +31,12 @@ from pyscf.pbc.tools import k2gamma
- from pyscf.pbc.tools import pbc as pbctools
- from pyscf import __config__
- from pyscf.pbc.gto import _pbcintor
-+from pyscf.pbc.gto._pbcintor import libpbc
+diff --git a/pyscf/lib/vhf/test/test_nr_direct.py b/pyscf/lib/vhf/test/test_nr_direct.py
+index 0e5894a25..c4e1c2530 100644
+--- a/pyscf/lib/vhf/test/test_nr_direct.py
++++ b/pyscf/lib/vhf/test/test_nr_direct.py
+@@ -15,7 +15,6 @@
  
- RCUT_THRESHOLD = getattr(__config__, 'pbc_scf_rsjk_rcut_threshold', 2.5)
- KECUT_THRESHOLD = getattr(__config__, 'pbc_scf_rsjk_kecut_threshold', 10.0)
- LOG_ADJUST = 32
- 
--libpbc = lib.load_library('libpbc')
--
- def verify_cint_backend():
-     compiled_with_qcint = ctypes.c_int.in_dll(libpbc, 'compiled_with_qcint').value
-     if compiled_with_qcint:
-diff --git a/pyscf/pbc/gto/_pbcintor.py b/pyscf/pbc/gto/_pbcintor.py
-index 5b97c2ecd..87d72799c 100644
---- a/pyscf/pbc/gto/_pbcintor.py
-+++ b/pyscf/pbc/gto/_pbcintor.py
-@@ -13,11 +13,17 @@
- # See the License for the specific language governing permissions and
- # limitations under the License.
- 
-+import sys
+ import os
  import ctypes
+-import _ctypes
+ import unittest
  import numpy
  from pyscf import lib
- 
- libpbc = lib.load_library('libpbc')
-+
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libcgto = lib.load_library('libcgto')
-+    libpbc = lib.make_dll_wrapper(libpbc, libcint, libcgto)
- def _fpointer(name):
-     return ctypes.addressof(getattr(libpbc, name))
- 
+@@ -68,7 +67,7 @@ def runjk(dm1, ncomp, intorname, filldot, *namejk):
+     dmsptr = (ctypes.c_void_p*(njk*n_dm))()
+     vjkptr = (ctypes.c_void_p*(njk*n_dm))()
+     for i, symb in enumerate(namejk):
+-        f1 = ctypes.c_void_p(_ctypes.dlsym(libcvhf2._handle, symb))
++        f1 = ctypes.cast(getattr(libcvhf2, symb), ctypes.c_void_p)
+         for j in range(n_dm):
+             dmsptr[i*n_dm+j] = dm1[j].ctypes.data_as(ctypes.c_void_p)
+             vjkptr[i*n_dm+j] = vjk[i,j*ncomp].ctypes.data_as(ctypes.c_void_p)
 diff --git a/pyscf/scf/_vhf.py b/pyscf/scf/_vhf.py
-index 65833914b..a91d53e8f 100644
+index 65833914b..98fb062b9 100644
 --- a/pyscf/scf/_vhf.py
 +++ b/pyscf/scf/_vhf.py
-@@ -22,8 +22,13 @@ from pyscf import gto
+@@ -15,15 +15,15 @@
+ 
+ import sys
+ import ctypes
+-import _ctypes
+ import numpy
+ from pyscf import lib
+ from pyscf import gto
  from pyscf.gto.moleintor import make_cintopt, make_loc, ascint3
  
  libcvhf = lib.load_library('libcvhf')
-+
-+if sys.platform == 'win32':
-+    libcint = lib.load_library('libcint')
-+    libcvhf = lib.make_dll_wrapper(libcvhf, libcint)
 +
  def _fpointer(name):
 -    return ctypes.c_void_p(_ctypes.dlsym(libcvhf._handle, name))

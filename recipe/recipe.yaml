@@ -14,9 +14,7 @@ source:
   sha256: f55fe07c058f98b1ab7b1cbbf630b0a85ce7da6c5015a07f0a15ede3d14289fa
   patches:
     - 0001-win-dll-wrappers.patch
-    - 0002-win-build.patch
     - 0003-win-temp.patch
-    - 0004-win-test-dll-wrappers.patch
 
 build:
   number: ${{ ( (build_num | int) + 100 * (mlevel | int) + (1000 if use_fast_math else 0) ) }}
