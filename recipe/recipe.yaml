@@ -88,7 +88,9 @@ tests:
             - pyscf
             - pyscf.dft
             # Tests LIBXC and XCFUN
-          python_version: ["${{ python_min ~ '.*' }}", "3.11.*", "3.12.*", "3.13.*"]
+          python_version:
+            - ${{ python_min }}.*
+            - "*"
           pip_check: true
       - script:
           - cp pyscf_conf.py .pyscf_conf.py
